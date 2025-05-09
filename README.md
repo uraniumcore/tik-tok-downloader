@@ -12,8 +12,8 @@ A Python-based bot for downloading TikTok videos.
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/uraniumcore/tiktokdownloader.git
-cd tiktokdownloader
+git clone https://github.com/uraniumcore/tik-tok-downloader.git
+cd tik-tok-downloader
 ```
 
 2. Create and activate a virtual environment:
