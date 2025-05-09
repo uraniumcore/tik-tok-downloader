@@ -9,6 +9,7 @@ from datetime import datetime
 import logging
 from dotenv import load_dotenv
 import hashlib
+import json
 
 # Load environment variables
 load_dotenv()
@@ -29,27 +30,43 @@ class TikTokDownloader:
 
     def _clean_filename(self, title: str) -> str:
         """Clean and shorten the filename to prevent length issues"""
-        # Remove hashtags, mentions, and emojis
-        clean_title = re.sub(r'#\w+|@\w+|[^\w\s-]', '', title)
-        # Remove multiple spaces
-        clean_title = re.sub(r'\s+', ' ', clean_title).strip()
-        # Limit to 50 characters
-        clean_title = clean_title[:50].strip()
-        # Create a short hash from the original title
-        title_hash = hashlib.md5(title.encode()).hexdigest()[:8]
-        return f"{clean_title}_{title_hash}"
+        try:
+            # If title is None or not a string, use a default
+            if not isinstance(title, str):
+                title = "tiktok_video"
+            
+            # Remove hashtags, mentions, and emojis
+            clean_title = re.sub(r'#\w+|@\w+|[^\w\s-]', '', title)
+            # Remove multiple spaces
+            clean_title = re.sub(r'\s+', ' ', clean_title).strip()
+            # Limit to 50 characters
+            clean_title = clean_title[:50].strip()
+            # If clean_title is empty after cleaning, use default
+            if not clean_title:
+                clean_title = "tiktok_video"
+            # Create a short hash from the original title
+            title_hash = hashlib.md5(str(title).encode()).hexdigest()[:8]
+            return f"{clean_title}_{title_hash}"
+        except Exception as e:
+            logger.error(f"Error cleaning filename: {str(e)}")
+            return f"tiktok_video_{hashlib.md5(str(datetime.now()).encode()).hexdigest()[:8]}"
 
     def _get_ydl_opts(self, custom_name: Optional[str] = None) -> dict:
         """Generate yt-dlp options dictionary"""
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         
         def custom_filename(d):
-            if custom_name:
-                return f"{custom_name}.%(ext)s"
-            # Get the title from the video info
-            title = d.get('title', 'video')
-            clean_title = self._clean_filename(title)
-            return os.path.join(self.save_path, f"{clean_title}_{timestamp}.%(ext)s")
+            try:
+                if custom_name:
+                    return f"{custom_name}.%(ext)s"
+                # Get the title from the video info
+                title = d.get('title', 'video')
+                clean_title = self._clean_filename(title)
+                return os.path.join(self.save_path, f"{clean_title}_{timestamp}.%(ext)s")
+            except Exception as e:
+                logger.error(f"Error in custom_filename: {str(e)}")
+                # Fallback to a simple filename if there's an error
+                return os.path.join(self.save_path, f"tiktok_video_{timestamp}.%(ext)s")
 
         return {
             'format': 'bestvideo+bestaudio/best',
@@ -68,7 +85,18 @@ class TikTokDownloader:
             'postprocessors': [{
                 'key': 'FFmpegVideoConvertor',
                 'preferedformat': 'mp4',
-            }]
+            }],
+            'retries': 10,  # Increase retry attempts
+            'fragment_retries': 10,
+            'extractor_retries': 10,
+            'ignoreerrors': True,  # Continue on download errors
+            'no_check_certificate': True,  # Skip certificate validation
+            'http_headers': {  # Add headers to mimic browser
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                'Accept-Language': 'en-us,en;q=0.5',
+                'Sec-Fetch-Mode': 'navigate',
+            }
         }
 
     def _progress_hook(self, d: dict):
@@ -83,10 +111,21 @@ class TikTokDownloader:
         """Download a TikTok video"""
         try:
             with yt_dlp.YoutubeDL(self._get_ydl_opts(custom_name)) as ydl:
-                info = ydl.extract_info(url, download=True)
-                downloaded_file = ydl.prepare_filename(info)
-                logger.info(f"Download completed: {downloaded_file}")
-                return downloaded_file
+                try:
+                    info = ydl.extract_info(url, download=True)
+                    if not info:
+                        raise Exception("Failed to extract video information")
+                    downloaded_file = ydl.prepare_filename(info)
+                    if not os.path.exists(downloaded_file):
+                        raise Exception("Downloaded file not found")
+                    logger.info(f"Download completed: {downloaded_file}")
+                    return downloaded_file
+                except json.JSONDecodeError as e:
+                    logger.error(f"JSON decode error: {str(e)}")
+                    raise Exception("Failed to parse TikTok response")
+                except Exception as e:
+                    logger.error(f"Download error: {str(e)}")
+                    raise
         except Exception as e:
             logger.error(f"Download failed: {str(e)}")
             return None
