@@ -35,6 +35,7 @@ main.py
 current.py
 logs/
 downloads/
+.env
 
 # OS specific
 .DS_Store

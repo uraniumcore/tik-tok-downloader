@@ -12,7 +12,7 @@ A Python-based bot for downloading TikTok videos.
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/yourusername/tiktokdownloader.git
+git clone https://github.com/uraniumcore/tiktokdownloader.git
 cd tiktokdownloader
 ```
 
@@ -27,19 +27,34 @@ source venv/bin/activate  # On Windows use: venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
+4. Set up environment variables:
+   - Create a `.env` file in the project root
+   - Add your Telegram bot token:
+   ```
+   BOT_TOKEN=your_bot_token_here
+   ```
+   - Get your bot token from [@BotFather](https://t.me/BotFather) on Telegram
+
 ## Usage
 
 Run the bot:
 ```bash
-python og.py
+python bot.py
 ```
 
 ## Project Structure
 
-- `og.py` - Main bot file
+- `bot.py` - Main bot file
 - `requirements.txt` - Project dependencies
+- `.env` - Environment variables (not tracked by git)
 - `downloads/` - Directory for downloaded videos
 - `logs/` - Log files directory
+
+## Security
+
+- Never commit your `.env` file
+- Keep your bot token secret
+- The `.env` file is automatically ignored by git
 
 ## License
 

@@ -7,6 +7,10 @@ from typing import Optional
 import yt_dlp
 from datetime import datetime
 import logging
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 # Configure logging
 logging.basicConfig(
@@ -170,7 +174,13 @@ if __name__ == '__main__':
         logger.error("yt-dlp not installed. Run: pip install yt-dlp")
         exit(1)
     
-    app = ApplicationBuilder().token("8023820595:AAHcciU1K-z5YsfS50BdTfFYFeKp74N5b_c").build()
+    # Get bot token from environment variable
+    bot_token = os.getenv('BOT_TOKEN')
+    if not bot_token:
+        logger.error("BOT_TOKEN not found in environment variables!")
+        exit(1)
+    
+    app = ApplicationBuilder().token(bot_token).build()
     
     # Add handlers
     app.add_handler(CommandHandler("start", lambda update, context: context.bot.send_message(
