@@ -8,6 +8,7 @@ import yt_dlp
 from datetime import datetime
 import logging
 from dotenv import load_dotenv
+import hashlib
 
 # Load environment variables
 load_dotenv()
@@ -26,14 +27,33 @@ class TikTokDownloader:
         self.use_cookies = use_cookies
         os.makedirs(self.save_path, exist_ok=True)
 
+    def _clean_filename(self, title: str) -> str:
+        """Clean and shorten the filename to prevent length issues"""
+        # Remove hashtags, mentions, and emojis
+        clean_title = re.sub(r'#\w+|@\w+|[^\w\s-]', '', title)
+        # Remove multiple spaces
+        clean_title = re.sub(r'\s+', ' ', clean_title).strip()
+        # Limit to 50 characters
+        clean_title = clean_title[:50].strip()
+        # Create a short hash from the original title
+        title_hash = hashlib.md5(title.encode()).hexdigest()[:8]
+        return f"{clean_title}_{title_hash}"
+
     def _get_ydl_opts(self, custom_name: Optional[str] = None) -> dict:
         """Generate yt-dlp options dictionary"""
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        filename = f"%(title)s_{timestamp}.%(ext)s" if not custom_name else f"{custom_name}.%(ext)s"
+        
+        def custom_filename(d):
+            if custom_name:
+                return f"{custom_name}.%(ext)s"
+            # Get the title from the video info
+            title = d.get('title', 'video')
+            clean_title = self._clean_filename(title)
+            return os.path.join(self.save_path, f"{clean_title}_{timestamp}.%(ext)s")
 
         return {
             'format': 'bestvideo+bestaudio/best',
-            'outtmpl': os.path.join(self.save_path, filename),
+            'outtmpl': custom_filename,
             'quiet': False,
             'no_warnings': False,
             'merge_output_format': 'mp4',
